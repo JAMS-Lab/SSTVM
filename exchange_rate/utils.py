@@ -1,5 +1,11 @@
 # -*- coding: utf-8 -*-
+"""
+Created on Mon May  5 15:14:25 2023
 
+@author: Gorgen
+@Fuction：
+    （1）“Dynamic Causal Explanation Based Diffusion-Variational Graph Neural Network for Spatio-temporal Forecasting”；
+"""
 
 import tensorflow.compat.v1 as tf
 import numpy as np
@@ -54,7 +60,6 @@ def TCNBlock(inputs, filters, kernel_size, dilation_rate, name="TCN"):
         name=name+'_conv'
     )
     return conv
-
 
 
 def simulate_diffusion(mu, sigma, steps=1, dt=0.1):

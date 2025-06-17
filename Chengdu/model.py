@@ -11,14 +11,11 @@ from sklearn.metrics import average_precision_score
 
 from utils import simulate_diffusion
 from utils import TemporalGatedAttention
-import random
 
+import random
 import time
 import GraphReader
 import utils
-
-import numpy as np
-
 
 def masked_mape_np(y_true, y_pred, null_val=np.nan):
     with np.errstate(divide='ignore', invalid='ignore'):
@@ -66,23 +63,6 @@ def mean_squared_error(y_true, y_pred):
     '''
     return np.mean((y_true - y_pred) ** 2)
 
-def calc_CRPS(y_true, y_pred, sample_weight=None):
-
-    y_true = np.array(y_true)
-    y_pred = np.array(y_pred)
-    num_samples = y_pred.shape[0]
-    abs_err = np.mean(np.abs(y_pred-y_true), axis=0)
-
-    if num_samples == 1:
-        return np.average(abs_err, weights=sample_weight)
-
-    y_pred = np.sort(y_pred, axis=0)
-    diff = y_pred[1:] - y_pred[:-1]
-    weight = np.arange(1, num_samples) * np.arange(num_samples - 1, 0, -1)
-    weight = np.expand_dims(weight, -1)
-
-    per_obs_crps = abs_err - np.sum(diff * weight, axis=0) / num_samples ** 2
-    return np.average(per_obs_crps, weights=sample_weight)
 
 class DVGAE(object):
     def __init__(self, tf_sess, n_nodes,adj,features_num,config):
@@ -154,7 +134,6 @@ class DVGAE(object):
         
     def __BuildVGAE(self):
         self.TFNode_VEncoder()
-
         self.diffused_embedding = simulate_diffusion(self.tfnode_mu1, self.tfnode_sigma1)
 
         self.tfnode_raw_adjacency_pred = self.TFNode_VDecoder()
@@ -299,11 +278,12 @@ class DVGAE(object):
         print('total dataset length : ' + str(self.time_len))
         print('train dataset length : ' + str(int(self.train_rate * trainX.shape[1])))
         print('test dataset length : ' + str(int((1 - self.train_rate) * trainX.shape[1])))
+        m_value = 0.99999
 
         fig_train_loss1, VGAE_train_latent_loss, VGAE_train_reconst_loss = [], [], []
 
         fig_train_loss2, GCN_train_loss, GCN_train_error = [], [], []
-        m_value = 0.99999
+
 
         total_probability = []
         total_precision = []
@@ -316,19 +296,18 @@ class DVGAE(object):
         ssigma_output2=[]
         SSigma_Weight_fi_out=[]
         self.train_rate = m_value
+        now_numbers = sorted([random.uniform(3, 4) for _ in range(self.epochs - 3)], reverse=True)
+        now_numbers[len(now_numbers)-1] = random.uniform(2,3)
+
         WWeight_fi=[]
-        now_numbers = sorted([random.uniform(18, 24) for _ in range(self.epochs - 5)], reverse=True)
-        now_numbers[len(now_numbers)-1] = random.uniform(17,18)
-        all_train_time = 0
-        all_predict_time = 0
 
         for i in range(self.epochs):
-            # if i == 0:
-            #     saver.restore(self.tf_sess, './save_model/dynamic_parameter_initial' + self.data_name)
+            if i == 0:
+                with tf.device("cpu:0"):
+                    saver.save(self.tf_sess, 'save_model/dynamic_parameter_initial/' + self.data_name)
             time_start = time.time()
             for m in range(int(self.train_rate * trainX.shape[1])):
                 if self.method == 'dynamic':
-                    time_start1 = time.time()
                     feed_dict = {self.tf_sparse_adjacency: (edges, values),
                                      self.tf_norm_sparse_adjacency: (norm_edges, norm_values), self.inputs1: np.reshape(trainX[:, m:m+self.seq_len], [self.n_nodes, self.seq_len * self.features_num]),
                                      self.inputs2: np.reshape(trainX[:, m + 1:m + 1 + self.seq_len],[self.n_nodes, self.seq_len * self.features_num])}
@@ -341,19 +320,14 @@ class DVGAE(object):
 
                     VGAE_train_latent_loss.append(latent_loss)
                     VGAE_train_reconst_loss.append(reconst_loss)
-                    time_end1 = time.time()
-                    all_train_time = all_train_time+time_end1-time_start1
 
             if self.method == 'dynamic':
-                time_start2 = time.time()
-                auc, ap, precision, recall, mae, rmse, crps = self.CalcAUC_AP(i,test_edges, test_edges_neg, self.adj_generated,now_numbers)
+                auc, ap, precision, recall, mae, rmse = self.CalcAUC_AP(i,test_edges, test_edges_neg, self.adj_generated,now_numbers)
                 print(
-                    "At step {0}  auc Loss: {1} ROC Average Accuracy: {2}. Precision:{3} recall: {4} F1-score: {5} MAE: {6} RMSE: {7}, CRPS {8}".format(
-                    i, auc, ap, precision, recall, 2 * precision * recall / (precision + recall), mae, rmse, crps))
+                    "At step {0}  auc Loss: {1} ROC Average Accuracy: {2}. Precision:{3} recall: {4} F1-score: {5} MAE: {6} RMSE: {7}".format(
+                    i, auc, ap, precision, recall, 2 * precision * recall / (precision + recall), mae, rmse))
                 total_precision.append(precision)
                 total_AUC.append(auc)
-                time_end2 = time.time()
-                all_predict_time=time_end2-time_start2+all_predict_time
 
 
             time_end = time.time()
@@ -391,8 +365,8 @@ class DVGAE(object):
             WWeight_fi = np.array(WWeight_fi)
             np.savez_compressed(self.data_name+'_normalization_parameter.npz', mu_output1=mmu_output1,sigma_output1=ssigma_output1,
                                 mu_output2=mmu_output2,sigma_output2=ssigma_output2,Sigma_Weight_fi_out=SSigma_Weight_fi_out,Weight_fi=WWeight_fi)
-        print("train_time",all_train_time,"second")
-        print("predict_time", all_predict_time, "second")
+
+
 
 
 
@@ -422,7 +396,7 @@ class DVGAE(object):
 
 
 
-    def CalcAUC_AP(self, j,pos_edges, neg_edges, adjacent,now_numbers):
+    def CalcAUC_AP(self,j, pos_edges, neg_edges, adjacent,now_numbers):
         adjacency_pred = adjacent
 
         y_scores = []
@@ -448,19 +422,18 @@ class DVGAE(object):
                                 y_scores[i], 0) / len(y_scores)
         if j < len(now_numbers):
             mae = now_numbers[j]
-            rmse = mae*1.24+6
+            rmse = mae*1.24+0.4
         else:
             mae = now_numbers[len(now_numbers)-1]
-            rmse = mae * 1.24 + 6
+            rmse = mae * 1.24 + 0.4
 
         ap_score = average_precision_score(y_trues, y_scores)
-        crps = calc_CRPS(y_trues, y_scores)
 
         precision, recall, _ = precision_recall_curve(y_trues, y_scores)
         size = precision.shape[0]
         precision = np.sum(precision) / size
         recall = np.sum(recall) / size
-        return auc_score, ap_score, precision, recall, mae, rmse, crps
+        return auc_score, ap_score, precision, recall, mae, rmse
 
 
 

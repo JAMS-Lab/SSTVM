@@ -43,6 +43,7 @@ def preprocess_data(data, time_len, rate):
     return train_data, test_data
 
 
+
 def TCNBlock(inputs, filters, kernel_size, dilation_rate, name="TCN"):
     conv = tf.layers.conv1d(
         inputs=inputs,
@@ -54,7 +55,6 @@ def TCNBlock(inputs, filters, kernel_size, dilation_rate, name="TCN"):
         name=name+'_conv'
     )
     return conv
-
 
 
 def simulate_diffusion(mu, sigma, steps=1, dt=0.1):

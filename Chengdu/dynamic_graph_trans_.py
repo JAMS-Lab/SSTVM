@@ -1,33 +1,30 @@
 # -*- coding: utf-8 -*-
-""" Created on Mon May  5 15:14:25 2023
- @author: Gorgen
- @Fuction：     （1）“Dynamic Causal Explanation Based Diffusion-Variational Graph Neural Network for Spatio-temporal Forecasting”；
-"""
+
 import numpy as np
 import time
 
 
 
-dataset_name = 'AIRBJ'
+dataset_name = 'Tdrive'
 
-weigh_fi = np.load(dataset_name + '/' + dataset_name + '_normalization_parameter.npz') ['Weight_fi']
+weigh_fi = np.load(dataset_name + '_normalization_parameter.npz') ['Weight_fi']
 
 time_len = weigh_fi.shape[0]
 nodes = weigh_fi.shape[1]
 dynamic_matrix = np.zeros([time_len, nodes, nodes])
 
 
-sigma_cov = np.load(dataset_name + '/' + dataset_name + '_normalization_parameter.npz') ['Sigma_Weight_fi_out']
-mu1 =np.load(dataset_name + '/' + dataset_name + '_normalization_parameter.npz') ['mu_output1']
+sigma_cov = np.load(dataset_name + '_normalization_parameter.npz') ['Sigma_Weight_fi_out']
+mu1 =np.load(dataset_name + '_normalization_parameter.npz') ['mu_output1']
 
 mu1 = mu1[:,:,0]
-sigma1 = np.load(dataset_name + '/' + dataset_name + '_normalization_parameter.npz') ['sigma_output1']
+sigma1 = np.load(dataset_name + '_normalization_parameter.npz') ['sigma_output1']
 sigma1 = np.sum(sigma1,axis=2)
-mu2 = np.load(dataset_name + '/' + dataset_name + '_normalization_parameter.npz') ['mu_output2']
+mu2 = np.load(dataset_name + '_normalization_parameter.npz') ['mu_output2']
 
 
 mu2 = mu2[:,:,0]
-sigma2 = np.load(dataset_name + '/' + dataset_name + '_normalization_parameter.npz') ['sigma_output2']
+sigma2 = np.load(dataset_name + '_normalization_parameter.npz') ['sigma_output2']
 sigma2 = np.sum(sigma2,axis=2)
 
 bb =[]

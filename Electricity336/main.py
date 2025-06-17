@@ -19,7 +19,7 @@ import configparser
 
 # prepare dataset
 parser = argparse.ArgumentParser()
-parser.add_argument("--config", default='configurations/ECG.conf', type=str,
+parser.add_argument("--config", default='configurations/Electricity.conf', type=str,
                     help="configuration file path")
 
 args = parser.parse_args()

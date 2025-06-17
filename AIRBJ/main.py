@@ -1,8 +1,4 @@
 # -*- coding: utf-8 -*-
-""" Created on Mon May  5 15:14:25 2023
- @author: Gorgen
- @Fuction：     （1）“Dynamic Causal Explanation Based Diffusion-Variational Graph Neural Network for Spatio-temporal Forecasting”；
-"""
 
 
 import os
@@ -19,7 +15,7 @@ import configparser
 
 # prepare dataset
 parser = argparse.ArgumentParser()
-parser.add_argument("--config", default='configurations/ECG.conf', type=str,
+parser.add_argument("--config", default='configurations/AIRBJ.conf', type=str,
                     help="configuration file path")
 
 args = parser.parse_args()
@@ -57,14 +53,14 @@ def main():
     max_value = 1.0
     features = features / max_value
 
-    # # ======= 这里开始加噪声 =======
-    # noise_level = 0.01  # 噪声强度，可调节
-    # noise = noise_level * np.random.normal(loc=0.0, scale=1.0, size=features.shape)
-    # features = features + noise
-    # # 如果你确定数据是非负的，可以用下面这行保证非负
-    # features = np.clip(features, 0, None)
-    # print(f"Added Gaussian noise with std dev: {noise_level}")
-    # # ======= 加噪声结束 =======
+    # ======= 这里开始加噪声 =======
+    noise_level = 0.01  # 噪声强度，可调节
+    noise = noise_level * np.random.normal(loc=0.0, scale=1.0, size=features.shape)
+    features = features + noise
+    # 如果你确定数据是非负的，可以用下面这行保证非负
+    features = np.clip(features, 0, None)
+    print(f"Added Gaussian noise with std dev: {noise_level}")
+    # ======= 加噪声结束 =======
 
     # ======= 随机mask掉部分数据 =======
     mask_percentage = 0.2  # mask掉20%的数据，可以调整

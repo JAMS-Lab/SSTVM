@@ -7,15 +7,16 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.metrics import roc_auc_score, precision_recall_curve
 from sklearn.metrics import average_precision_score
-
+import random
 
 from utils import simulate_diffusion
 from utils import TemporalGatedAttention
-import random
 
 import time
 import GraphReader
 import utils
+from utils import simulate_diffusion
+from utils import TemporalGatedAttention
 
 import numpy as np
 
@@ -157,6 +158,10 @@ class DVGAE(object):
 
         self.diffused_embedding = simulate_diffusion(self.tfnode_mu1, self.tfnode_sigma1)
 
+        # decoder output shape: (N, N)
+        # expand dims to match attention input: (N, T=1, N)
+
+
         self.tfnode_raw_adjacency_pred = self.TFNode_VDecoder()
 
         attention_input = tf.expand_dims(self.adjacency_pred, axis=1)
@@ -193,6 +198,13 @@ class DVGAE(object):
 
         tf_init = tf.global_variables_initializer()
         self.tf_sess.run(tf_init)
+
+        # reshape inputs: (N, T*F) → (N, T, F)
+        inputs_reshaped = tf.reshape(self.inputs1, [self.n_nodes, self.seq_len, self.features_num])
+        tcn_output = utils.TCNBlock(inputs_reshaped, filters=self.features_num, kernel_size=3, dilation_rate=1)
+
+        # flatten TCN output: (N, T, F) → (N, T*F)
+        tcn_flatten = tf.reshape(tcn_output, [self.n_nodes, self.seq_len * self.features_num])
 
     def TFNode_VEncoder(self):
         self.W0 = utils.UniformRandomWeights(shape=[self.seq_len * self.features_num, self.n_hiddens])
@@ -263,6 +275,8 @@ class DVGAE(object):
                                                                  self.sigma_B1)
         self.tfnode_sigma2 = tf.exp(tfnode_log_sigma2)
 
+
+
     def TFNode_VDecoder(self):
         # 隐变量采样（均值与标准方差）
         self.Weight_fi = utils.UniformRandomWeights(shape=[self.n_nodes, self.n_nodes])
@@ -319,8 +333,6 @@ class DVGAE(object):
         WWeight_fi=[]
         now_numbers = sorted([random.uniform(18, 24) for _ in range(self.epochs - 5)], reverse=True)
         now_numbers[len(now_numbers)-1] = random.uniform(17,18)
-        all_train_time = 0
-        all_predict_time = 0
 
         for i in range(self.epochs):
             # if i == 0:
@@ -328,7 +340,6 @@ class DVGAE(object):
             time_start = time.time()
             for m in range(int(self.train_rate * trainX.shape[1])):
                 if self.method == 'dynamic':
-                    time_start1 = time.time()
                     feed_dict = {self.tf_sparse_adjacency: (edges, values),
                                      self.tf_norm_sparse_adjacency: (norm_edges, norm_values), self.inputs1: np.reshape(trainX[:, m:m+self.seq_len], [self.n_nodes, self.seq_len * self.features_num]),
                                      self.inputs2: np.reshape(trainX[:, m + 1:m + 1 + self.seq_len],[self.n_nodes, self.seq_len * self.features_num])}
@@ -341,19 +352,14 @@ class DVGAE(object):
 
                     VGAE_train_latent_loss.append(latent_loss)
                     VGAE_train_reconst_loss.append(reconst_loss)
-                    time_end1 = time.time()
-                    all_train_time = all_train_time+time_end1-time_start1
 
             if self.method == 'dynamic':
-                time_start2 = time.time()
                 auc, ap, precision, recall, mae, rmse, crps = self.CalcAUC_AP(i,test_edges, test_edges_neg, self.adj_generated,now_numbers)
                 print(
-                    "At step {0}  auc Loss: {1} ROC Average Accuracy: {2}. Precision:{3} recall: {4} F1-score: {5} MAE: {6} RMSE: {7}, CRPS {8}".format(
+                    "At step {0}  auc Loss: {1} ROC Average Accuracy: {2}. Precision:{3} recall: {4} F1-score: {5} MAE: {6} RMSE: {7}, CRPS: {8}".format(
                     i, auc, ap, precision, recall, 2 * precision * recall / (precision + recall), mae, rmse, crps))
                 total_precision.append(precision)
                 total_AUC.append(auc)
-                time_end2 = time.time()
-                all_predict_time=time_end2-time_start2+all_predict_time
 
 
             time_end = time.time()
@@ -391,8 +397,8 @@ class DVGAE(object):
             WWeight_fi = np.array(WWeight_fi)
             np.savez_compressed(self.data_name+'_normalization_parameter.npz', mu_output1=mmu_output1,sigma_output1=ssigma_output1,
                                 mu_output2=mmu_output2,sigma_output2=ssigma_output2,Sigma_Weight_fi_out=SSigma_Weight_fi_out,Weight_fi=WWeight_fi)
-        print("train_time",all_train_time,"second")
-        print("predict_time", all_predict_time, "second")
+
+
 
 
 
